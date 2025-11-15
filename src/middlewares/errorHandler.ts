@@ -1,8 +1,12 @@
 import { Request, Response, NextFunction } from "express";
-import constants from "../errorConstants.js";
+import constants from "../errorConstants";
 
 const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): void => {
-    const statusCode: number = res.statusCode ? res.statusCode : 500;
+    const statusCode: number = res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
+
+    // Set status code before sending response
+    res.status(statusCode);
+
     switch (statusCode) {
         case constants.VALIDATION_ERROR:
             res.json({ title: "Validation Failed", message: err.message, stackTrace: err.stack });
@@ -11,7 +15,7 @@ const errorHandler = (err: Error, req: Request, res: Response, next: NextFunctio
             res.json({ title: "Not Found", message: err.message, stackTrace: err.stack });
             break;
         case constants.UNAUTHORIZED:
-            res.json({ title: "Unauuthorized", message: err.message, stackTrace: err.stack });
+            res.json({ title: "Unauthorized", message: err.message, stackTrace: err.stack });
             break;
         case constants.FORBIDDEN:
             res.json({ title: "Forbidden", message: err.message, stackTrace: err.stack });
@@ -20,7 +24,7 @@ const errorHandler = (err: Error, req: Request, res: Response, next: NextFunctio
             res.json({ title: "Server Error", message: err.message, stackTrace: err.stack });
             break;
         default:
-            console.log("No error, all good");
+            res.json({ title: "Error", message: err.message, stackTrace: err.stack });
             break;
     }
 };

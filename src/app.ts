@@ -1,7 +1,7 @@
 import express from "express";
 import errorHandler from "./middlewares/errorHandler";
 import cors from "cors";
-// import routes from "./routes";
+import uploadRoutes from "./routes/uploadRoutes";
 
 export const app = express();
 
@@ -12,6 +12,8 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use(errorHandler);
+
 // All routes
-// app.use("/api", routes);
+app.use("/api/upload", uploadRoutes);
+
+app.use(errorHandler);
