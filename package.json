@@ -14,10 +14,13 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@clerk/express": "^1.7.52",
+    "bullmq": "^5.63.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-async-handler": "^1.2.0",
+    "ioredis": "^5.8.2",
     "multer": "^2.0.2"
   },
   "devDependencies": {

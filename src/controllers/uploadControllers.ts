@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import asyncHandler from "express-async-handler";
+import { fileUploadQueue } from "../queues/fileUploadQueue";
 
 //@desc Upload PDF files (max 5)
 //@route POST /api/upload
@@ -11,7 +12,9 @@ const uploadPdf = asyncHandler(async (req: Request, res: Response) => {
     }
 
     const files = req.files as Express.Multer.File[];
-
+    await fileUploadQueue.add("file-ready", {
+        files: JSON.stringify(files)
+    });
     res.status(200).json({
         success: true,
         message: `${files.length} file(s) uploaded successfully`,
