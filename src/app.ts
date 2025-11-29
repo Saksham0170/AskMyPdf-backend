@@ -1,7 +1,7 @@
 import express from "express";
 import errorHandler from "./middlewares/errorHandler";
 import cors from "cors";
-import uploadRoutes from "./routes/uploadRoutes";
+import uploadRoutes from "./routes/upload.route";
 import { clerkMiddleware } from "@clerk/express";
 
 export const app = express();
