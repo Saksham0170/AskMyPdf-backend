@@ -3,10 +3,10 @@ import { redisConfig } from "../config/redis";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
-import { PineconeStore } from "@langchain/pinecone";
 import { Pinecone as PineconeClient } from "@pinecone-database/pinecone";
 import fs from "fs";
 
+// 3072-dim model
 const embeddings = new GoogleGenerativeAIEmbeddings({
   apiKey: process.env.GOOGLE_GENAI_API_KEY!,
   model: "gemini-embedding-001",
@@ -18,14 +18,14 @@ const pinecone = new PineconeClient({
 
 const index = pinecone.Index("pdf");
 
-const worker = new Worker(
+
+export const worker = new Worker(
   "fileUploadQueue",
   async (job) => {
     try {
       console.log("job:", job.data);
 
-      const pdfs = job.data.pdfs;
-      const chatId = job.data.chatId;
+      const { pdfs, chatId } = job.data;
 
       const files =
         typeof job.data.files === "string"
@@ -34,10 +34,9 @@ const worker = new Worker(
 
       console.log(`Processing ${files.length} file(s)`);
 
-      // process each file along with its DB record
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const pdfRecord = pdfs[i]; // pdfRecord.id is pdfId
+        const pdfRecord = pdfs[i];
 
         console.log(`Processing: ${file.originalName || file.originalname}`);
 
@@ -48,54 +47,89 @@ const worker = new Worker(
         // enrich metadata for each page
         docs.forEach((doc, pageIndex) => {
           doc.metadata = {
-            ...doc.metadata,
-            fileName: pdfRecord.realName, 
+            fileName: pdfRecord.realName,
             pdfId: pdfRecord.id,
             page: doc.metadata?.loc?.pageNumber ?? pageIndex + 1,
-            chatId: chatId,
+            chatId,
             source: "pdf",
           };
         });
 
         // 2. chunk
         const splitter = new RecursiveCharacterTextSplitter({
-          chunkSize: 1000,
+          chunkSize: 2000,
           chunkOverlap: 200,
         });
 
-        const splitDocs = await splitter.splitDocuments(docs);
-        console.log("Chunks:", splitDocs.length);
+        const chunks = await splitter.splitDocuments(docs);
+        console.log("Total chunks:", chunks.length);
 
-        splitDocs.forEach((chunk, index) => {
+        chunks.forEach((chunk, idx) => {
           chunk.metadata = {
-            ...chunk.metadata,
-            chunkIndex: index,
+            pdfId: pdfRecord.id,
+            chatId,
+            page: chunk.metadata?.page ?? idx + 1,
+            fileName: pdfRecord.realName,
+            chunkIndex: idx,
+            text: chunk.pageContent,
             preview: chunk.pageContent.slice(0, 200),
+            source: "pdf",
           };
         });
 
-        // 3. store in pinecone
-        await PineconeStore.fromDocuments(splitDocs, embeddings, {
-          pineconeIndex: index,
-          maxConcurrency: 5,
-          namespace: chatId, 
-        });
+        // 3. EMBEDDINGS (optimized batch)
+        console.log("Embedding chunks…");
 
-        console.log(`Stored ${file.originalName || file.originalname}`);
+        const texts = chunks.map((c) => c.pageContent);
 
-        // 4. delete file from server
-        fs.unlink(file.path, () => {});
+        // Gemini can embed large batches at once
+        const vectors = await embeddings.embedDocuments(texts);
+
+        console.log("Embedding complete. Vector length sample:", vectors[0]?.length);
+
+        // SAFETY CHECK
+        if (!vectors.length || vectors[0].length !== 3072) {
+          throw new Error(
+            `Embedding dimension mismatch. Got ${vectors[0]?.length}, expected 3072`
+          );
+        }
+
+        // 4. PREP VECTORS FOR PINECONE
+        const pineconeVectors = vectors.map((v, idx) => ({
+          id: `${pdfRecord.id}_chunk_${idx}`,
+          values: v,
+          metadata: chunks[idx].metadata,
+        }));
+
+        // 5. UPSERT IN BIG BATCHES (fast)
+        console.log("Upserting to Pinecone...");
+
+        const batchSize = 100; // large batch for speed
+        for (let start = 0; start < pineconeVectors.length; start += batchSize) {
+          const batch = pineconeVectors.slice(start, start + batchSize);
+
+          await index.namespace(chatId).upsert(batch);
+
+          console.log(
+            `Upserted batch ${Math.floor(start / batchSize) + 1} / ${Math.ceil(
+              pineconeVectors.length / batchSize
+            )}`
+          );
+        }
+
+        console.log("Stored:", file.originalName || file.originalname);
+
+        // 6. DELETE TEMP FILE
+        fs.unlink(file.path, () => { });
       }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error("Worker error:", error.message, error.stack);
-      } else {
-        console.error("Worker error:", error);
-      }
-      throw error;
+    } catch (err: any) {
+      console.error("Worker error:", err.message);
+      throw err;
     }
   },
-  { connection: redisConfig }
+  {
+    connection: redisConfig,
+  }
 );
 
 export default worker;

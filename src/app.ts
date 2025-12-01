@@ -1,9 +1,9 @@
 import express from "express";
 import errorHandler from "./middlewares/errorHandler";
 import cors from "cors";
-import uploadRoutes from "./routes/upload.route";
+import fileRoutes from "./routes/file.route";
 import { clerkMiddleware } from "@clerk/express";
-
+import chatRoutes from "./routes/chat.route";
 export const app = express();
 
 app.use(cors({
@@ -18,5 +18,6 @@ app.use(clerkMiddleware());
 
 
 // All routes
-app.use("/api/upload", uploadRoutes);
+app.use("/api/files", fileRoutes);
+app.use("/api/chat", chatRoutes);
 app.use(errorHandler);

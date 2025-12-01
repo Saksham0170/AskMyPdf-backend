@@ -1,15 +1,9 @@
 import { prisma } from "../lib/prisma";
 import { fileUploadQueue } from "../queues/fileUpload.queue";
+import fs from "fs";
+import path from "path";
 
-interface FileData {
-  filename: string;
-  originalname: string;
-  path: string;
-  size: number;
-  mimetype: string;
-}
-
-export const uploadService = {
+export const fileService = {
   async uploadFile(chatId: string, files: Express.Multer.File[]) {
     // Save PDF records to database
     const pdfRecords = await Promise.all(
@@ -23,6 +17,7 @@ export const uploadService = {
         })
       )
     );
+
     // Add files to processing queue
     await fileUploadQueue.add("file-ready", {
       chatId,
@@ -32,7 +27,15 @@ export const uploadService = {
         fileName: f.filename,
         originalName: f.originalname,
       })),
+    }, {
+      attempts: 5,
+      backoff: {
+        type: "exponential",
+        delay: 3000,
+        jitter: 0.3,  
+      },
     });
+
     return pdfRecords;
   },
 
@@ -43,9 +46,23 @@ export const uploadService = {
     });
   },
 
-  async deletePdf(pdfId: string) {
-    return prisma.pdf.delete({
+  async getPdfById(pdfId: string) {
+    return prisma.pdf.findUnique({
       where: { id: pdfId }
     });
+  },
+
+  async deletePdf(pdfId: string) {
+    const pdf = await prisma.pdf.delete({
+      where: { id: pdfId }
+    });
+
+    // Delete the physical file from uploads folder
+    const filePath = path.join(process.cwd(), 'uploads', pdf.fileName);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    return pdf;
   }
 };

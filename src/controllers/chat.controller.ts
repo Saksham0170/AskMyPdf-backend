@@ -75,6 +75,7 @@ export const askQuestion = asyncHandler(async (req: Request, res: Response) => {
     res.status(404);
     throw new Error("Chat not found");
   }
-
-  //TODO: Implement ask question logic
+  const question: string = req.body.question;
+  const answer = await chatService.askQuestion(userId, chatId, question);
+  res.json(answer);
 });

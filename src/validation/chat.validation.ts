@@ -5,7 +5,7 @@ const AskQuestionSchema = z.object({
     chatId: z.string().uuid("Invalid chatId format"),
   }),
   body: z.object({
-    message: z.string().min(1, "Message cannot be empty"),
+    question: z.string().min(1, "Question cannot be empty"),
   }),
 });
 
