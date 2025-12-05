@@ -1,15 +1,18 @@
 import express from "express";
-import { uploadPdf, getPdfsForChat, deletePdf } from "../controllers/file.controller";
-import { uploadMiddleware, handleMulterError } from "../middlewares/upload.middleware";
+import { generateUploadURLs, confirmUploads, getPdfsForChat, deletePdf, getSignedUrl } from "../controllers/file.controller";
 import { requireAuth } from "@clerk/express";
-import { UploadPdfSchema, GetPdfsSchema, DeletePdfSchema } from "../validation/file.validation";
+import { GetPdfsSchema, DeletePdfSchema, GenerateUploadURLsSchema, ConfirmUploadsSchema, GetSignedUrlSchema } from "../validation/file.validation";
 import { validate } from "../middlewares/validate";
 
 const router = express.Router();
 
-// Upload PDFs to a chat
-router.route("/upload/:chatId")
-    .post(requireAuth(), validate(UploadPdfSchema), uploadMiddleware, handleMulterError, uploadPdf);
+// Generate upload URLs for files
+router.route("/:chatId/upload-urls")
+    .post(requireAuth(), validate(GenerateUploadURLsSchema), generateUploadURLs);
+
+// Confirm file uploads
+router.route("/:chatId/confirm-uploads")
+    .post(requireAuth(), validate(ConfirmUploadsSchema), confirmUploads);
 
 // Get all PDFs for a chat
 router.route("/:chatId")
@@ -18,5 +21,9 @@ router.route("/:chatId")
 // Delete a specific PDF
 router.route("/delete/:pdfId")
     .delete(requireAuth(), validate(DeletePdfSchema), deletePdf);
+
+// Get signed URL to access a PDF
+router.route("/access/:pdfId")
+    .get(requireAuth(), validate(GetSignedUrlSchema), getSignedUrl);
 
 export default router;

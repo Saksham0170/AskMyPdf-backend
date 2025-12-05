@@ -4,7 +4,17 @@ import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { Pinecone as PineconeClient } from "@pinecone-database/pinecone";
+import { createClient } from "@supabase/supabase-js";
 import fs from "fs";
+import path from "path";
+import os from "os";
+
+const BUCKET = "pdfs";
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // 3072-dim model
 const embeddings = new GoogleGenerativeAIEmbeddings({
@@ -38,13 +48,31 @@ export const worker = new Worker(
         const file = files[i];
         const pdfRecord = pdfs[i];
 
-        console.log(`Processing: ${file.originalName || file.originalname}`);
+        console.log(`Processing: ${pdfRecord.realName}`);
 
-        // 1. load PDF
-        const loader = new PDFLoader(file.path);
+        // 1. Download PDF from Supabase to temp location
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from(BUCKET)
+          .download(pdfRecord.fileName);
+
+        if (downloadError || !fileData) {
+          console.error("Failed to download from Supabase:", downloadError);
+          throw new Error(`Failed to download file: ${pdfRecord.realName}`);
+        }
+
+        // Save to temp file
+        const tempDir = os.tmpdir();
+        const tempFilePath = path.join(tempDir, `${pdfRecord.id}.pdf`);
+        const arrayBuffer = await fileData.arrayBuffer();
+        fs.writeFileSync(tempFilePath, Buffer.from(arrayBuffer));
+
+        console.log(`Downloaded to temp: ${tempFilePath}`);
+
+        // 2. Load PDF
+        const loader = new PDFLoader(tempFilePath);
         const docs = await loader.load();
 
-        // enrich metadata for each page
+        // Enrich metadata for each page
         docs.forEach((doc, pageIndex) => {
           doc.metadata = {
             fileName: pdfRecord.realName,
@@ -55,7 +83,7 @@ export const worker = new Worker(
           };
         });
 
-        // 2. chunk
+        // 3. Chunk
         const splitter = new RecursiveCharacterTextSplitter({
           chunkSize: 2000,
           chunkOverlap: 200,
@@ -77,7 +105,7 @@ export const worker = new Worker(
           };
         });
 
-        // 3. EMBEDDINGS (optimized batch)
+        // 4. EMBEDDINGS (optimized batch)
         console.log("Embedding chunks…");
 
         const texts = chunks.map((c) => c.pageContent);
@@ -117,10 +145,11 @@ export const worker = new Worker(
           );
         }
 
-        console.log("Stored:", file.originalName || file.originalname);
+        console.log("Stored:", pdfRecord.realName);
 
-        // 6. DELETE TEMP FILE
-        fs.unlink(file.path, () => { });
+        // 6. Delete temp file
+        fs.unlinkSync(tempFilePath);
+        console.log(`Deleted temp file: ${tempFilePath}`);
       }
     } catch (err: any) {
       console.error("Worker error:", err.message);

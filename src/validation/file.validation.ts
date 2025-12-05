@@ -1,10 +1,32 @@
 import { z } from "zod";
 
-export const UploadPdfSchema = z.object({
+export const GenerateUploadURLsSchema = z.object({
   params: z.object({
     chatId: z.string().uuid("Invalid chatId format"),
   }),
-  body: z.object({}).optional(), // no body fields needed
+  body: z.object({
+    fileNames: z
+      .array(z.string().min(1, "File name cannot be empty"))
+      .min(1, "At least one file is required")
+      .max(10, "Maximum 10 files allowed"),
+  }),
+});
+
+export const ConfirmUploadsSchema = z.object({
+  params: z.object({
+    chatId: z.string().uuid("Invalid chatId format"),
+  }),
+  body: z.object({
+    uploads: z
+      .array(
+        z.object({
+          fileName: z.string().min(1, "File name is required"),
+          path: z.string().min(1, "File path is required"),
+        })
+      )
+      .min(1, "At least one upload is required")
+      .max(10, "Maximum 10 uploads allowed"),
+  }),
 });
 
 export const GetPdfsSchema = z.object({
@@ -14,6 +36,12 @@ export const GetPdfsSchema = z.object({
 });
 
 export const DeletePdfSchema = z.object({
+  params: z.object({
+    pdfId: z.string().uuid("Invalid pdfId format"),
+  }),
+});
+
+export const GetSignedUrlSchema = z.object({
   params: z.object({
     pdfId: z.string().uuid("Invalid pdfId format"),
   }),

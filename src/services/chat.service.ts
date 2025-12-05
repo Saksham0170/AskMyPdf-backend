@@ -47,6 +47,9 @@ export const chatService = {
       throw new Error("Chat not found");
     }
 
+    // Check if chat needs a name
+    const needsName = !chat.identifier;
+
     // 1. Create embedding for the question
     const questionVector = await embeddings.embedQuery(question);
 
@@ -101,6 +104,29 @@ ANSWER:
         },
       }),
     ]);
+
+    // 6. Generate chat name if identifier is null
+    if (needsName) {
+      try {
+        const namePrompt = `Based on this question, generate a concise chat title (maximum 4-5 words):
+
+Question: ${question}
+
+Return only the title, nothing else.`;
+
+        const nameResult = await model.generateContent(namePrompt);
+        const chatName = nameResult.response.text().trim();
+
+        // Update chat with generated name
+        await prisma.chat.update({
+          where: { id: chatId },
+          data: { identifier: chatName },
+        });
+      } catch (error) {
+        console.error("Failed to generate chat name:", error);
+        // Don't fail the request if name generation fails
+      }
+    }
 
     return {
       question: userMessage,
