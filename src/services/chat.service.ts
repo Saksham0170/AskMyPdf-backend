@@ -70,8 +70,9 @@ export const chatService = {
     const prompt = `You are an AI assistant answering questions based on the provided PDF context.
 
 RULES:
--Answer using clean Markdown format.
--Use **bold** for key terms and proper line breaks.
+- Provide your answer in plain text format suitable for chat, NOT in Markdown.
+- Do NOT use any Markdown formatting like **, ##, -, etc.
+- Write naturally as if speaking in a conversation.
 - Do NOT invent information not present in the context.
 - If the context does not contain the answer, say: "The answer is not available in the provided context."
 
