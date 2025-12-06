@@ -13,6 +13,17 @@ const GetChatByIdSchema = z.object({
   params: z.object({
     chatId: z.string().uuid("Invalid chatId format"),
   }),
+  query: z.object({
+    page: z.string().optional(),
+    limit: z.string().optional(),
+  }).optional(),
 });
 
-export { AskQuestionSchema, GetChatByIdSchema };
+const GetUserChatsSchema = z.object({
+  query: z.object({
+    page: z.string().optional(),
+    limit: z.string().optional(),
+  }).optional(),
+});
+
+export { AskQuestionSchema, GetChatByIdSchema, GetUserChatsSchema };

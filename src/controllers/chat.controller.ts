@@ -29,8 +29,11 @@ export const getUserChats = asyncHandler(async (req: Request, res: Response) => 
     throw new Error("Unauthorized");
   }
 
-  const chats = await chatService.getUserChats(userId);
-  res.json(chats);
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+
+  const result = await chatService.getUserChats(userId, page, limit);
+  res.json(result);
 });
 
 // @desc Get chat by ID
@@ -45,8 +48,10 @@ export const getChatById = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const { chatId } = req.params;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 50;
 
-  const chat = await chatService.getChatById(userId, chatId);
+  const chat = await chatService.getChatById(userId, chatId, page, limit);
 
   if (!chat) {
     res.status(404);

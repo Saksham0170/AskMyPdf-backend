@@ -22,33 +22,82 @@ export const chatService = {
     });
   },
 
-  async getUserChats(userId: string) {
-    return prisma.chat.findMany({
-      where: { userId },
-      orderBy: { updatedAt: "desc" },
-    });
+  async getUserChats(userId: string, page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+
+    const [chats, total] = await Promise.all([
+      prisma.chat.findMany({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.chat.count({
+        where: { userId },
+      }),
+    ]);
+
+    return {
+      chats,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   },
 
-  async getChatById(userId: string, chatId: string) {
-    return prisma.chat.findFirst({
+  async getChatById(userId: string, chatId: string, page: number = 1, limit: number = 50) {
+    const skip = (page - 1) * limit;
+
+    const chat = await prisma.chat.findFirst({
       where: { id: chatId, userId },
       include: {
         pdfs: true,
-        messages: {
-          orderBy: { createdAt: "asc" }
-        }
       },
     });
+
+    if (!chat) {
+      return null;
+    }
+
+    const [messages, totalMessages] = await Promise.all([
+      prisma.message.findMany({
+        where: { chatId },
+        orderBy: { createdAt: "asc" },
+        skip,
+        take: limit,
+      }),
+      prisma.message.count({
+        where: { chatId },
+      }),
+    ]);
+
+    return {
+      ...chat,
+      messages,
+      pagination: {
+        page,
+        limit,
+        total: totalMessages,
+        totalPages: Math.ceil(totalMessages / limit),
+      },
+    };
   },
 
   async askQuestion(userId: string, chatId: string, question: string) {
-    const chat = await this.getChatById(userId, chatId);
-    if (!chat) {
+    // Check if chat exists and belongs to user
+    const chatExists = await prisma.chat.findFirst({
+      where: { id: chatId, userId },
+    });
+
+    if (!chatExists) {
       throw new Error("Chat not found");
     }
 
     // Check if chat needs a name
-    const needsName = !chat.identifier;
+    const needsName = !chatExists.identifier;
 
     // 1. Create embedding for the question
     const questionVector = await embeddings.embedQuery(question);
