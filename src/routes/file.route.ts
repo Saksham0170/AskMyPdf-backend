@@ -3,16 +3,17 @@ import { generateUploadURLs, confirmUploads, getPdfsForChat, deletePdf, getSigne
 import { requireAuth } from "@clerk/express";
 import { GetPdfsSchema, DeletePdfSchema, GenerateUploadURLsSchema, ConfirmUploadsSchema, GetSignedUrlSchema } from "../validation/file.validation";
 import { validate } from "../middlewares/validate";
+import { uploadRateLimiter } from "../middlewares/rateLimiter";
 
 const router = express.Router();
 
 // Generate upload URLs for files
 router.route("/:chatId/upload-urls")
-    .post(requireAuth(), validate(GenerateUploadURLsSchema), generateUploadURLs);
+    .post(requireAuth(), uploadRateLimiter, validate(GenerateUploadURLsSchema), generateUploadURLs);
 
 // Confirm file uploads
 router.route("/:chatId/confirm-uploads")
-    .post(requireAuth(), validate(ConfirmUploadsSchema), confirmUploads);
+    .post(requireAuth(), uploadRateLimiter, validate(ConfirmUploadsSchema), confirmUploads);
 
 // Get all PDFs for a chat
 router.route("/:chatId")

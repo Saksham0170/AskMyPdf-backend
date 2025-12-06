@@ -4,6 +4,7 @@ import cors from "cors";
 import fileRoutes from "./routes/file.route";
 import { clerkMiddleware } from "@clerk/express";
 import chatRoutes from "./routes/chat.route";
+import { generalRateLimiter } from "./middlewares/rateLimiter";
 export const app = express();
 
 app.use(cors({
@@ -15,6 +16,7 @@ app.use(cors({
 app.use(express.json());
 
 app.use(clerkMiddleware());
+app.use(generalRateLimiter);
 
 
 // All routes
