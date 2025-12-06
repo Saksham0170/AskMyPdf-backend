@@ -129,10 +129,13 @@ Return only the title, nothing else.`;
       }
     }
 
+    // Check if answer indicates context not available
+    const answerNotAvailable = answer.toLowerCase().includes("answer is not available in the provided context");
+
     return {
       question: userMessage,
       answer: aiMessage,
-      sources: searchResults.matches.map((match) => ({
+      sources: answerNotAvailable ? [] : searchResults.matches.map((match) => ({
         fileName: match.metadata?.fileName,
         page: match.metadata?.page,
         preview: match.metadata?.preview,
