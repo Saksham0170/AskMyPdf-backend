@@ -65,7 +65,7 @@ export const chatService = {
     const [messages, totalMessages] = await Promise.all([
       prisma.message.findMany({
         where: { chatId },
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
@@ -76,7 +76,7 @@ export const chatService = {
 
     return {
       ...chat,
-      messages,
+      messages: messages.reverse(), // Reverse to get chronological order after fetching latest first
       pagination: {
         page,
         limit,
