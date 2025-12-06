@@ -2,6 +2,7 @@ import { prisma } from "../lib/prisma";
 import { fileUploadQueue } from "../queues/fileUpload.queue";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+import { Pinecone as PineconeClient } from "@pinecone-database/pinecone";
 
 const BUCKET = "pdfs";
 
@@ -9,6 +10,10 @@ const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+const pinecone = new PineconeClient({
+  apiKey: process.env.PINECONE_API_KEY!,
+});
 
 export const fileService = {
   /**
@@ -156,12 +161,21 @@ export const fileService = {
       console.error("Failed to delete from storage:", error);
     }
 
+    // Delete from Pinecone
+    try {
+      const index = pinecone.Index("pdf");
+      await index.namespace(pdf.chatId).deleteMany({
+        pdfId: pdfId
+      });
+      console.log(`✅ Deleted vectors for PDF ${pdfId} from Pinecone`);
+    } catch (pineconeError) {
+      console.error("Failed to delete from Pinecone:", pineconeError);
+    }
+
     // Delete from database
     await prisma.pdf.delete({
       where: { id: pdfId },
     });
-
-    // TODO: Delete from Pinecone as well
 
     return { success: true };
   },
