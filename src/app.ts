@@ -8,7 +8,7 @@ import { generalRateLimiter } from "./middlewares/rateLimiter";
 export const app = express();
 
 app.use(cors({
-  origin: "*", // Update with client URL in production
+  origin: process.env.CORS_ORIGIN || "*",
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true
 }));
