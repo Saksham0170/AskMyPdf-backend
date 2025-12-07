@@ -13,7 +13,7 @@ router.route("/:chatId/upload-urls")
 
 // Confirm file uploads
 router.route("/:chatId/confirm-uploads")
-    .post(requireAuth(), uploadRateLimiter, validate(ConfirmUploadsSchema), confirmUploads);
+    .post(requireAuth(), validate(ConfirmUploadsSchema), confirmUploads);
 
 // Get all PDFs for a chat
 router.route("/:chatId")

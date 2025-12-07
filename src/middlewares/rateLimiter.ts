@@ -3,12 +3,12 @@ import { RateLimiterRedis } from "rate-limiter-flexible";
 import redis from "../config/redis";
 import { getAuth } from "@clerk/express";
 
-// Rate limiter for general API requests (100 requests per 15 minutes per IP)
+// Rate limiter for general API requests (100 requests per minute per IP)
 const rateLimiterGeneral = new RateLimiterRedis({
     storeClient: redis,
     keyPrefix: "rl:general",
     points: 100, // Number of requests
-    duration: 15 * 60, // Per 15 minutes
+    duration: 60, // Per 1 minute
 });
 
 // Rate limiter for AI requests (20 requests per day per user)
@@ -33,8 +33,13 @@ export const generalRateLimiter = async (
     next: NextFunction
 ) => {
     try {
-        const key = req.ip || req.socket.remoteAddress || "unknown";
-        await rateLimiterGeneral.consume(key);
+        const { userId } = getAuth(req);
+        if (!userId) {
+            res.status(401).json({ success: false, message: "Unauthorized" });
+            return;
+        }
+
+        await rateLimiterGeneral.consume(userId);
         next();
     } catch (error) {
         res.status(429).json({
@@ -51,8 +56,12 @@ export const aiRateLimiter = async (
 ) => {
     try {
         const { userId } = getAuth(req);
-        const key = userId || req.ip || "unknown";
-        await rateLimiterAI.consume(key);
+        if (!userId) {
+            res.status(401).json({ success: false, message: "Unauthorized" });
+            return;
+        }
+
+        await rateLimiterAI.consume(userId);
         next();
     } catch (error) {
         res.status(429).json({
@@ -69,8 +78,12 @@ export const uploadRateLimiter = async (
 ) => {
     try {
         const { userId } = getAuth(req);
-        const key = userId || req.ip || "unknown";
-        await rateLimiterUpload.consume(key);
+        if (!userId) {
+            res.status(401).json({ success: false, message: "Unauthorized" });
+            return;
+        }
+
+        await rateLimiterUpload.consume(userId);
         next();
     } catch (error) {
         res.status(429).json({
