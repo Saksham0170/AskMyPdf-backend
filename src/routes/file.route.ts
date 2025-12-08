@@ -1,7 +1,7 @@
 import express from "express";
-import { generateUploadURLs, confirmUploads, getPdfsForChat, deletePdf, getSignedUrl } from "../controllers/file.controller";
+import { generateUploadURLs, confirmUploads, getPdfsForChat, deletePdf, getSignedUrl, getPdfStatus } from "../controllers/file.controller";
 import { requireAuth } from "@clerk/express";
-import { GetPdfsSchema, DeletePdfSchema, GenerateUploadURLsSchema, ConfirmUploadsSchema, GetSignedUrlSchema } from "../validation/file.validation";
+import { GetPdfsSchema, DeletePdfSchema, GenerateUploadURLsSchema, ConfirmUploadsSchema, GetSignedUrlSchema, GetPdfStatusSchema } from "../validation/file.validation";
 import { validate } from "../middlewares/validate";
 import { uploadRateLimiter } from "../middlewares/rateLimiter";
 
@@ -18,6 +18,10 @@ router.route("/:chatId/confirm-uploads")
 // Get all PDFs for a chat
 router.route("/:chatId")
     .get(requireAuth(), validate(GetPdfsSchema), getPdfsForChat);
+
+// Get PDF status (accepts comma-separated IDs, max 3)
+router.route("/status/:pdfIds")
+    .get(requireAuth(), validate(GetPdfStatusSchema), getPdfStatus);
 
 // Delete a specific PDF
 router.route("/delete/:pdfId")

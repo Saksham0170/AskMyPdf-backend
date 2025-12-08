@@ -46,3 +46,25 @@ export const GetSignedUrlSchema = z.object({
     pdfId: z.string().uuid("Invalid pdfId format"),
   }),
 });
+
+export const GetPdfStatusSchema = z.object({
+  params: z.object({
+    pdfIds: z
+      .string()
+      .min(1, "At least one PDF ID is required")
+      .refine(
+        (value) => {
+          const ids = value.split(',').map(id => id.trim()).filter(Boolean);
+          return ids.length > 0 && ids.length <= 3;
+        },
+        { message: "Provide between 1 and 3 comma-separated PDF IDs" }
+      )
+      .refine(
+        (value) => {
+          const ids = value.split(',').map(id => id.trim()).filter(Boolean);
+          return ids.every(id => z.string().uuid().safeParse(id).success);
+        },
+        { message: "All PDF IDs must be valid UUIDs" }
+      ),
+  }),
+});

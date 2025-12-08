@@ -54,7 +54,11 @@ export const chatService = {
     const chat = await prisma.chat.findFirst({
       where: { id: chatId, userId },
       include: {
-        pdfs: true,
+        pdfs: {
+          where: {
+            status: "COMPLETED"
+          }
+        }
       },
     });
 

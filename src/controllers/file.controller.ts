@@ -110,3 +110,70 @@ export const getSignedUrl = asyncHandler(async (req: Request, res: Response) => 
         data: result
     });
 });
+
+//@desc Get processing status of PDF(s)
+//@route GET /api/files/status/:pdfIds (comma-separated)
+//@access private
+export const getPdfStatus = asyncHandler(async (req: Request, res: Response) => {
+    const { userId } = getAuth(req);
+    const { pdfIds } = req.params;
+
+    if (!userId) {
+        res.status(401);
+        throw new Error("Unauthorized");
+    }
+
+    // Parse comma-separated IDs
+    const pdfIdArray = pdfIds.split(',').map(id => id.trim()).filter(Boolean);
+    
+    if (pdfIdArray.length === 0) {
+        res.status(400);
+        throw new Error("At least one PDF ID is required");
+    }
+
+    if (pdfIdArray.length > 3) {
+        res.status(400);
+        throw new Error("Maximum 3 PDF IDs allowed");
+    }
+
+    // Fetch all PDFs
+    const pdfs = await Promise.all(
+        pdfIdArray.map(id => fileService.getPdfById(id))
+    );
+
+    // Check for not found PDFs
+    const notFoundIds = pdfIdArray.filter((id, index) => !pdfs[index]);
+    if (notFoundIds.length > 0) {
+        res.status(404);
+        throw new Error(`PDF(s) not found: ${notFoundIds.join(', ')}`);
+    }
+
+    // Verify all PDFs belong to user's chats
+    const chatIds = [...new Set(pdfs.map(pdf => pdf!.chatId))];
+    const chatChecks = await Promise.all(
+        chatIds.map(chatId => chatService.getChatById(userId, chatId))
+    );
+
+    if (chatChecks.some(chat => !chat)) {
+        res.status(404);
+        throw new Error("Unauthorized");
+    }
+
+    const pdfStatuses = pdfs.map(pdf => ({
+        id: pdf!.id,
+        fileName: pdf!.realName,
+        status: pdf!.status,
+        createdAt: pdf!.createdAt,
+        updatedAt: pdf!.updatedAt,
+    }));
+
+    res.status(200).json({
+        success: true,
+        data: {
+            total: pdfStatuses.length,
+            processing: pdfStatuses.filter(p => p.status === "PROCESSING").length,
+            completed: pdfStatuses.filter(p => p.status === "COMPLETED").length,
+            failed: pdfStatuses.filter(p => p.status === "FAILED").length,
+        }
+    });
+});

@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import { Worker } from "bullmq";
 import { redisConfig } from "../config/redis";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
@@ -5,6 +8,7 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { Pinecone as PineconeClient } from "@pinecone-database/pinecone";
 import { createClient } from "@supabase/supabase-js";
+import { prisma } from "../lib/prisma";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -32,6 +36,8 @@ const index = pinecone.Index("pdf");
 export const worker = new Worker(
   "fileUploadQueue",
   async (job) => {
+    const processedPdfIds = new Set<string>();
+    
     try {
       console.log("job:", job.data);
 
@@ -147,12 +153,40 @@ export const worker = new Worker(
 
         console.log("Stored:", pdfRecord.realName);
 
-        // 6. Delete temp file
+        // 6. Update PDF status to COMPLETED
+        await prisma.pdf.update({
+          where: { id: pdfRecord.id },
+          data: { status: "COMPLETED" },
+        });
+        console.log(`PDF processing completed: ${pdfRecord.realName}`);
+        
+        // Mark as successfully processed
+        processedPdfIds.add(pdfRecord.id);
+
+        // 7. Delete temp file
         fs.unlinkSync(tempFilePath);
         console.log(`Deleted temp file: ${tempFilePath}`);
       }
     } catch (err: any) {
       console.error("Worker error:", err.message);
+
+      // Mark unprocessed PDFs as FAILED
+      try {
+        const failedPdfIds = job.data.pdfs
+          .map((p: any) => p.id)
+          .filter((id: string) => !processedPdfIds.has(id));
+
+        if (failedPdfIds.length > 0) {
+          await prisma.pdf.updateMany({
+            where: { id: { in: failedPdfIds } },
+            data: { status: "FAILED" },
+          });
+          console.log(`Marked ${failedPdfIds.length} PDF(s) as FAILED`);
+        }
+      } catch (updateErr) {
+        console.error("Failed to update PDF status:", updateErr);
+      }
+
       throw err;
     }
   },

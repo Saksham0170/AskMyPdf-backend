@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "PdfStatus" AS ENUM ('PROCESSING', 'COMPLETED', 'FAILED');
+
+-- AlterTable
+ALTER TABLE "Pdf" ADD COLUMN     "status" "PdfStatus" NOT NULL DEFAULT 'PROCESSING';

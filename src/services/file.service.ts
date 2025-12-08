@@ -133,7 +133,7 @@ export const fileService = {
 
   async getPdfsByChatId(chatId: string) {
     return prisma.pdf.findMany({
-      where: { chatId },
+      where: { chatId, status: "COMPLETED" },
       orderBy: { createdAt: 'desc' }
     });
   },
@@ -167,7 +167,7 @@ export const fileService = {
       await index.namespace(pdf.chatId).deleteMany({
         pdfId: pdfId
       });
-      console.log(`✅ Deleted vectors for PDF ${pdfId} from Pinecone`);
+      console.log(`Deleted vectors for PDF ${pdfId} from Pinecone`);
     } catch (pineconeError) {
       console.error("Failed to delete from Pinecone:", pineconeError);
     }

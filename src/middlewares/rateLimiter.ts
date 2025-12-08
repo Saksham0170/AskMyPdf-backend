@@ -23,7 +23,7 @@ const rateLimiterAI = new RateLimiterRedis({
 const rateLimiterUpload = new RateLimiterRedis({
     storeClient: redis,
     keyPrefix: "rl:upload",
-    points: 3,
+    points: 100,
     duration: 24 * 60 * 60,
 });
 
