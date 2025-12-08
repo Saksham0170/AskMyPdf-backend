@@ -2,8 +2,8 @@
 
 **AskMyPDF** is a production-ready system that enables users to upload PDF documents and interact with them through AI-powered question answering. The system intelligently extracts text, generates embeddings, stores vectors, and uses semantic search to provide accurate responses.
 
-**🔗 Live Demo:** [https://ask-my-pdf-frontend.vercel.app/](https://ask-my-pdf-frontend.vercel.app/)
-
+**🔗 Live Demo:** [https://ask-my-pdf-frontend.vercel.app](https://ask-my-pdf-frontend.vercel.app)  
+**🔗 Frontend Repository:** [https://github.com/Saksham0170/AskMyPdf-frontend](https://github.com/Saksham0170/AskMyPdf-frontend)
 ### Key Capabilities
 
 - 📤 **Secure PDF Upload** via Supabase Storage
