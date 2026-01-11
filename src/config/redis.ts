@@ -1,4 +1,4 @@
-import { Redis } from "ioredis";
+import Redis from "ioredis";
 
 export const redisConfig = {
   username: process.env.REDIS_USERNAME ?? "default",
